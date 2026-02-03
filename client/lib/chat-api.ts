@@ -1,9 +1,9 @@
 // ============================================
-// CHAT API - All messaging uses the backend API
+// CHAT API - All messaging uses the production server
+// Server: https://chat-server-production-6f5d.up.railway.app
 // No Firebase, Telegram, or external services
 // ============================================
 
-import { getApiUrl } from "@/lib/query-client";
 import { getPairing } from "@/lib/secure-storage";
 
 // ============================================
@@ -11,6 +11,12 @@ import { getPairing } from "@/lib/secure-storage";
 // URL: https://www.zidhuxd.me/chat.json
 // ============================================
 const PAIRING_URL = "https://www.zidhuxd.me/chat.json";
+
+// ============================================
+// PRODUCTION API SERVER
+// Hosted on Railway at port 8080
+// ============================================
+const API_BASE = "https://chat-server-production-6f5d.up.railway.app";
 
 // API keys for authorization (matches server configuration)
 const API_KEYS = {
@@ -51,16 +57,6 @@ function getAuthHeader(role: "A" | "B"): { Authorization: string } {
   return { Authorization: `Bearer ${API_KEYS[role]}` };
 }
 
-// Get the API base URL
-function getBaseUrl(): string {
-  try {
-    return getApiUrl();
-  } catch {
-    // Fallback for development
-    return "http://localhost:5000";
-  }
-}
-
 // ============================================
 // PAIRING - Fetched from https://www.zidhuxd.me/chat.json
 // This is called on first unlock to get pairing data
@@ -87,7 +83,8 @@ export function findPairingByCode(
 }
 
 // ============================================
-// MESSAGING API - Uses backend /api endpoints
+// MESSAGING API - Uses production server
+// https://chat-server-production-6f5d.up.railway.app
 // ============================================
 
 // Send a new message
@@ -96,8 +93,7 @@ export async function sendMessage(
   text: string
 ): Promise<Message | null> {
   try {
-    const baseUrl = getBaseUrl();
-    const response = await fetch(`${baseUrl}api/send`, {
+    const response = await fetch(`${API_BASE}/api/send`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -122,8 +118,7 @@ export async function sendMessage(
 // Fetch all messages for the conversation
 export async function fetchMessages(role: "A" | "B"): Promise<Message[]> {
   try {
-    const baseUrl = getBaseUrl();
-    const response = await fetch(`${baseUrl}api/messages`, {
+    const response = await fetch(`${API_BASE}/api/messages`, {
       method: "GET",
       headers: {
         ...getAuthHeader(role),
@@ -146,8 +141,7 @@ export async function pollMessages(
   since: number = 0
 ): Promise<Message[]> {
   try {
-    const baseUrl = getBaseUrl();
-    const response = await fetch(`${baseUrl}api/poll?since=${since}`, {
+    const response = await fetch(`${API_BASE}/api/poll?since=${since}`, {
       method: "GET",
       headers: {
         ...getAuthHeader(role),
@@ -171,8 +165,7 @@ export async function sendTypingEvent(
   isTyping: boolean
 ): Promise<void> {
   try {
-    const baseUrl = getBaseUrl();
-    await fetch(`${baseUrl}api/typing`, {
+    await fetch(`${API_BASE}/api/typing`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -187,8 +180,7 @@ export async function sendTypingEvent(
 
 export async function getTypingStatus(role: "A" | "B"): Promise<boolean> {
   try {
-    const baseUrl = getBaseUrl();
-    const response = await fetch(`${baseUrl}api/typing`, {
+    const response = await fetch(`${API_BASE}/api/typing`, {
       method: "GET",
       headers: {
         ...getAuthHeader(role),
@@ -212,8 +204,7 @@ export async function sendReadReceipt(
   messageIds: string[]
 ): Promise<void> {
   try {
-    const baseUrl = getBaseUrl();
-    await fetch(`${baseUrl}api/read`, {
+    await fetch(`${API_BASE}/api/read`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -230,9 +221,8 @@ export async function getReadStatus(messageId: string): Promise<boolean> {
   try {
     const pairing = await getPairing();
     if (!pairing) return false;
-    
-    const baseUrl = getBaseUrl();
-    const response = await fetch(`${baseUrl}api/read/${messageId}`, {
+
+    const response = await fetch(`${API_BASE}/api/read/${messageId}`, {
       method: "GET",
       headers: {
         ...getAuthHeader(pairing.role),
