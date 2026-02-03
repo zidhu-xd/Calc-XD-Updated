@@ -13,7 +13,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
-import { Feather, LucideMoreVertical, LucideTrash2 } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Alert, Modal, TouchableWithoutFeedback } from "react-native";
 import { saveChatHistory, readChatHistory, deleteChatHistory } from "@/lib/file-system";
