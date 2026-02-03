@@ -19,16 +19,22 @@ export async function saveChatHistory(filename: string, content: string) {
     const filePath = `${CHAT_HISTORY_DIR}${filename}`;
     
     // Validate content to prevent malformed writes
+    let stringContent: string;
     if (typeof content !== 'string') {
-      content = JSON.stringify(content);
+      try {
+        stringContent = JSON.stringify(content);
+      } catch (e) {
+        stringContent = String(content);
+      }
+    } else {
+      stringContent = content;
     }
     
-    await FileSystem.writeAsStringAsync(filePath, content, {
-      encoding: FileSystem.EncodingType.UTF8,
+    await FileSystem.writeAsStringAsync(filePath, stringContent, {
+      encoding: "utf8",
     });
   } catch (error) {
     console.error("rxpo-file-system: method writeAsStringAsync failed.", error);
-    // Fallback or retry logic could go here if needed
   }
 }
 
