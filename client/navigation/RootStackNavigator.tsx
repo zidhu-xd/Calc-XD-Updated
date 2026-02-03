@@ -1,32 +1,35 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import MainTabNavigator from "@/navigation/MainTabNavigator";
-import ModalScreen from "@/screens/ModalScreen";
-import { useScreenOptions } from "@/hooks/useScreenOptions";
+
+import CalculatorScreen from "@/screens/CalculatorScreen";
+import ChatScreen from "@/screens/ChatScreen";
 
 export type RootStackParamList = {
-  Main: undefined;
-  Modal: undefined;
+  Calculator: undefined;
+  Chat: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function RootStackNavigator() {
-  const screenOptions = useScreenOptions();
-
   return (
-    <Stack.Navigator screenOptions={screenOptions}>
+    <Stack.Navigator
+      initialRouteName="Calculator"
+      screenOptions={{
+        headerShown: false,
+        animation: "fade",
+        gestureEnabled: false,
+      }}
+    >
       <Stack.Screen
-        name="Main"
-        component={MainTabNavigator}
-        options={{ headerShown: false }}
+        name="Calculator"
+        component={CalculatorScreen}
       />
       <Stack.Screen
-        name="Modal"
-        component={ModalScreen}
+        name="Chat"
+        component={ChatScreen}
         options={{
-          presentation: "modal",
-          headerTitle: "Modal",
+          animation: "slide_from_bottom",
         }}
       />
     </Stack.Navigator>

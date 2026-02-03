@@ -1,5 +1,29 @@
 import { Platform } from "react-native";
 
+export const CalculatorColors = {
+  background: "#1C1C1C",
+  displayText: "#FFFFFF",
+  numberButton: "#2D2D2D",
+  operatorButton: "#FF9F0A",
+  buttonText: "#FFFFFF",
+  buttonPress: 0.8,
+};
+
+export const ChatColors = {
+  background: "#0D0D0D",
+  headerBackground: "#1F1F1F",
+  senderBubble: "#7D6E5C",
+  receiverBubble: "#3A3A3A",
+  inputBarBackground: "#262626",
+  inputFieldBackground: "#3A3A3A",
+  textPrimary: "#FFFFFF",
+  textSecondary: "#7A7A7A",
+  readReceiptActive: "#34B7F1",
+  readReceiptInactive: "#7A7A7A",
+  sendButton: "#7D6E5C",
+  border: "#3A3A3A",
+};
+
 const tintColorLight = "#007AFF";
 const tintColorDark = "#0A84FF";
 
@@ -10,10 +34,10 @@ export const Colors = {
     tabIconDefault: "#687076",
     tabIconSelected: tintColorLight,
     link: "#007AFF",
-    backgroundRoot: "#FFFFFF", // Elevation 0
-    backgroundDefault: "#F2F2F2", // Elevation 1
-    backgroundSecondary: "#E6E6E6", // Elevation 2
-    backgroundTertiary: "#D9D9D9", // Elevation 3
+    backgroundRoot: "#FFFFFF",
+    backgroundDefault: "#F2F2F2",
+    backgroundSecondary: "#E6E6E6",
+    backgroundTertiary: "#D9D9D9",
   },
   dark: {
     text: "#ECEDEE",
@@ -21,10 +45,10 @@ export const Colors = {
     tabIconDefault: "#9BA1A6",
     tabIconSelected: tintColorDark,
     link: "#0A84FF",
-    backgroundRoot: "#1F2123", // Elevation 0
-    backgroundDefault: "#2A2C2E", // Elevation 1
-    backgroundSecondary: "#353739", // Elevation 2
-    backgroundTertiary: "#404244", // Elevation 3
+    backgroundRoot: "#1C1C1C",
+    backgroundDefault: "#2A2C2E",
+    backgroundSecondary: "#353739",
+    backgroundTertiary: "#404244",
   },
 };
 
@@ -89,17 +113,25 @@ export const Typography = {
     lineHeight: 24,
     fontWeight: "400" as const,
   },
+  calculatorDisplay: {
+    fontSize: 48,
+    fontWeight: "700" as const,
+  },
+  calculatorButton: {
+    fontSize: 20,
+    fontWeight: "500" as const,
+  },
+  chatMessage: {
+    fontSize: 16,
+    fontWeight: "400" as const,
+  },
 };
 
 export const Fonts = Platform.select({
   ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
     sans: "system-ui",
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
     serif: "ui-serif",
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
     rounded: "ui-rounded",
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
     mono: "ui-monospace",
   },
   default: {
