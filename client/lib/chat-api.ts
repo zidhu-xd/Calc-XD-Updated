@@ -1,10 +1,22 @@
 // ============================================
-// CHAT API - All messaging uses https://zidhuxd.me/api
+// CHAT API - All messaging uses the backend API
 // No Firebase, Telegram, or external services
 // ============================================
 
-const API_BASE = "https://zidhuxd.me/api";
+import { getApiUrl } from "@/lib/query-client";
+import { getPairing } from "@/lib/secure-storage";
+
+// ============================================
+// PAIRING DATA - Fetched from external URL on first unlock
+// URL: https://www.zidhuxd.me/chat.json
+// ============================================
 const PAIRING_URL = "https://www.zidhuxd.me/chat.json";
+
+// API keys for authorization (matches server configuration)
+const API_KEYS = {
+  A: "calc-user-a-key-2024",
+  B: "calc-user-b-key-2024",
+};
 
 export interface Message {
   id: string;
@@ -34,8 +46,24 @@ export interface PairingResponse {
   group_chat_id?: string;
 }
 
+// Helper to get authorization header for a role
+function getAuthHeader(role: "A" | "B"): { Authorization: string } {
+  return { Authorization: `Bearer ${API_KEYS[role]}` };
+}
+
+// Get the API base URL
+function getBaseUrl(): string {
+  try {
+    return getApiUrl();
+  } catch {
+    // Fallback for development
+    return "http://localhost:5000";
+  }
+}
+
 // ============================================
 // PAIRING - Fetched from https://www.zidhuxd.me/chat.json
+// This is called on first unlock to get pairing data
 // ============================================
 export async function fetchPairingData(): Promise<PairingResponse | null> {
   try {
@@ -59,24 +87,31 @@ export function findPairingByCode(
 }
 
 // ============================================
-// MESSAGING API - Uses https://zidhuxd.me/api
+// MESSAGING API - Uses backend /api endpoints
 // ============================================
 
+// Send a new message
 export async function sendMessage(
   role: "A" | "B",
   text: string
 ): Promise<Message | null> {
   try {
-    const response = await fetch(`${API_BASE}/messages`, {
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}api/send`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeader(role),
+      },
       body: JSON.stringify({
-        sender: role,
         text,
-        timestamp: Date.now(),
+        localId: `local_${Date.now()}`,
       }),
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.error("Failed to send message:", response.status);
+      return null;
+    }
     return await response.json();
   } catch (error) {
     console.error("Error sending message:", error);
@@ -84,10 +119,20 @@ export async function sendMessage(
   }
 }
 
+// Fetch all messages for the conversation
 export async function fetchMessages(role: "A" | "B"): Promise<Message[]> {
   try {
-    const response = await fetch(`${API_BASE}/messages?role=${role}`);
-    if (!response.ok) return [];
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}api/messages`, {
+      method: "GET",
+      headers: {
+        ...getAuthHeader(role),
+      },
+    });
+    if (!response.ok) {
+      console.error("Failed to fetch messages:", response.status);
+      return [];
+    }
     return await response.json();
   } catch (error) {
     console.error("Error fetching messages:", error);
@@ -95,32 +140,60 @@ export async function fetchMessages(role: "A" | "B"): Promise<Message[]> {
   }
 }
 
+// Poll for new messages (used for real-time updates)
+export async function pollMessages(
+  role: "A" | "B",
+  since: number = 0
+): Promise<Message[]> {
+  try {
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}api/poll?since=${since}`, {
+      method: "GET",
+      headers: {
+        ...getAuthHeader(role),
+      },
+    });
+    if (!response.ok) return [];
+    return await response.json();
+  } catch (error) {
+    console.error("Error polling messages:", error);
+    return [];
+  }
+}
+
+// ============================================
+// TYPING EVENTS - Hidden JSON-based typing indicator
+// NOT persisted, only held in memory on server
+// ============================================
+
 export async function sendTypingEvent(
   role: "A" | "B",
   isTyping: boolean
 ): Promise<void> {
   try {
-    await fetch(`${API_BASE}/typing`, {
+    const baseUrl = getBaseUrl();
+    await fetch(`${baseUrl}api/typing`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "typing",
-        sender: role,
-        isTyping,
-        timestamp: Date.now(),
-      }),
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeader(role),
+      },
+      body: JSON.stringify({ isTyping }),
     });
   } catch (error) {
     console.error("Error sending typing event:", error);
   }
 }
 
-export async function getTypingStatus(
-  role: "A" | "B"
-): Promise<boolean> {
+export async function getTypingStatus(role: "A" | "B"): Promise<boolean> {
   try {
-    const otherRole = role === "A" ? "B" : "A";
-    const response = await fetch(`${API_BASE}/typing?role=${otherRole}`);
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}api/typing`, {
+      method: "GET",
+      headers: {
+        ...getAuthHeader(role),
+      },
+    });
     if (!response.ok) return false;
     const data = await response.json();
     return data.isTyping || false;
@@ -129,20 +202,24 @@ export async function getTypingStatus(
   }
 }
 
+// ============================================
+// READ RECEIPTS - Blue tick when message is read
+// Only activates when chat screen is visibly open
+// ============================================
+
 export async function sendReadReceipt(
   role: "A" | "B",
   messageIds: string[]
 ): Promise<void> {
   try {
-    await fetch(`${API_BASE}/read`, {
+    const baseUrl = getBaseUrl();
+    await fetch(`${baseUrl}api/read`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "read_receipt",
-        sender: role,
-        messageIds,
-        timestamp: Date.now(),
-      }),
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeader(role),
+      },
+      body: JSON.stringify({ messageIds }),
     });
   } catch (error) {
     console.error("Error sending read receipt:", error);
@@ -151,7 +228,16 @@ export async function sendReadReceipt(
 
 export async function getReadStatus(messageId: string): Promise<boolean> {
   try {
-    const response = await fetch(`${API_BASE}/read/${messageId}`);
+    const pairing = await getPairing();
+    if (!pairing) return false;
+    
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}api/read/${messageId}`, {
+      method: "GET",
+      headers: {
+        ...getAuthHeader(pairing.role),
+      },
+    });
     if (!response.ok) return false;
     const data = await response.json();
     return data.read || false;
