@@ -221,7 +221,9 @@ export default function ChatScreen() {
       if (!pairing) return;
 
       const newMessages = await fetchMessages(pairing.role);
-      setMessages(newMessages);
+      // Ensure messages are sorted descending for inverted FlatList (newest at index 0)
+      const sortedMessages = [...newMessages].sort((a, b) => b.timestamp - a.timestamp);
+      setMessages(sortedMessages);
 
       // Send read receipts for unread messages when screen is visible
       if (isScreenVisible) {
@@ -286,7 +288,7 @@ export default function ChatScreen() {
 
     const newMessage = await sendMessage(pairing.role, text);
     if (newMessage) {
-      setMessages((prev) => [...prev, newMessage]);
+      setMessages((prev) => [newMessage, ...prev]);
     }
   };
 
@@ -330,13 +332,13 @@ export default function ChatScreen() {
           data={messages}
           keyExtractor={(item) => item.id}
           renderItem={renderMessage}
-          inverted={messages.length > 0}
+          inverted
           contentContainerStyle={[
             styles.messageList,
             messages.length === 0 && styles.emptyList,
           ]}
           ListEmptyComponent={EmptyState}
-          ListHeaderComponent={
+          ListFooterComponent={
             otherTyping ? (
               <Animated.View entering={FadeIn} exiting={FadeOut}>
                 <TypingIndicator />
@@ -344,6 +346,9 @@ export default function ChatScreen() {
             ) : null
           }
           showsVerticalScrollIndicator={false}
+          maintainVisibleContentPosition={{
+            minIndexForVisible: 0,
+          }}
           testID="message-list"
         />
 
