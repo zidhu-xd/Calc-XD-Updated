@@ -1,6 +1,18 @@
 import * as FileSystem from "expo-file-system";
 
-const CHAT_HISTORY_DIR = `${FileSystem.documentDirectory}chat_history/`;
+const CHAT_HISTORY_DIR = (FileSystem.documentDirectory || "") + "chat_history/";
+
+export async function deleteChatHistory(filename: string) {
+  try {
+    const filePath = `${CHAT_HISTORY_DIR}${filename}`;
+    const fileInfo = await FileSystem.getInfoAsync(filePath);
+    if (fileInfo.exists) {
+      await FileSystem.deleteAsync(filePath);
+    }
+  } catch (error) {
+    console.error("Error deleting chat history:", error);
+  }
+}
 
 export async function ensureDirectoryExists() {
   try {

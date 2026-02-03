@@ -13,8 +13,10 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
-import { Feather } from "@expo/vector-icons";
+import { Feather, LucideMoreVertical, LucideTrash2 } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { Alert, Modal, TouchableWithoutFeedback } from "react-native";
+import { saveChatHistory, readChatHistory, deleteChatHistory } from "@/lib/file-system";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -196,6 +198,17 @@ export default function ChatScreen() {
   const loadPairing = async () => {
     const stored = await getPairing();
     setPairing(stored);
+    
+    if (stored) {
+      const history = await readChatHistory(`chat_${stored.role}.json`);
+      if (history) {
+        try {
+          setMessages(JSON.parse(history));
+        } catch (e) {
+          console.error("Error parsing chat history:", e);
+        }
+      }
+    }
   };
 
   // ============================================
@@ -224,6 +237,11 @@ export default function ChatScreen() {
       // Ensure messages are sorted descending for inverted FlatList (newest at index 0)
       const sortedMessages = [...newMessages].sort((a, b) => b.timestamp - a.timestamp);
       setMessages(sortedMessages);
+      
+      // Persist to local storage
+      if (sortedMessages.length > 0) {
+        await saveChatHistory(`chat_${pairing.role}.json`, JSON.stringify(sortedMessages));
+      }
 
       // Send read receipts for unread messages when screen is visible
       if (isScreenVisible) {
@@ -288,7 +306,11 @@ export default function ChatScreen() {
 
     const newMessage = await sendMessage(pairing.role, text);
     if (newMessage) {
-      setMessages((prev) => [newMessage, ...prev]);
+      setMessages((prev) => {
+        const updated = [newMessage, ...prev];
+        saveChatHistory(`chat_${pairing.role}.json`, JSON.stringify(updated));
+        return updated;
+      });
     }
   };
 
@@ -303,6 +325,29 @@ export default function ChatScreen() {
     />
   );
 
+  const [menuVisible, setMenuVisible] = useState(false);
+
+  const handleClearChat = async () => {
+    Alert.alert(
+      "Clear Chat",
+      "Are you sure you want to delete all messages? This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            if (pairing) {
+              await deleteChatHistory(`chat_${pairing.role}.json`);
+              setMessages([]);
+              setMenuVisible(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderHeader = () => (
     <View style={[styles.header, { paddingTop: insets.top }]}>
       <Pressable
@@ -313,7 +358,34 @@ export default function ChatScreen() {
         <Feather name="arrow-left" size={24} color={ChatColors.textPrimary} />
       </Pressable>
       <Text style={styles.headerTitle}>Messages</Text>
-      <View style={styles.headerRight} />
+      <Pressable
+        onPress={() => setMenuVisible(true)}
+        style={styles.menuButton}
+        testID="button-menu"
+      >
+        <Feather name="more-vertical" size={24} color={ChatColors.textPrimary} />
+      </Pressable>
+
+      <Modal
+        visible={menuVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.menuContent}>
+              <Pressable
+                style={styles.menuItem}
+                onPress={handleClearChat}
+              >
+                <Feather name="trash-2" size={20} color="#FF453A" />
+                <Text style={[styles.menuItemText, { color: "#FF453A" }]}>Clear Chat</Text>
+              </Pressable>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </View>
   );
 
@@ -419,6 +491,39 @@ const styles = StyleSheet.create({
     color: ChatColors.textPrimary,
     fontSize: 17,
     fontWeight: "600",
+  },
+  menuButton: {
+    padding: Spacing.sm,
+    marginRight: -Spacing.sm,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
+    paddingTop: 100, // Adjust based on header height
+    paddingRight: Spacing.lg,
+  },
+  menuContent: {
+    backgroundColor: ChatColors.headerBackground,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.xs,
+    minWidth: 150,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: Spacing.md,
+    gap: Spacing.md,
+  },
+  menuItemText: {
+    fontSize: 16,
+    fontWeight: "500",
   },
   headerRight: {
     width: 40,
