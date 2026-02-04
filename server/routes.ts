@@ -289,7 +289,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     authMiddleware,
     (req: Request, res: Response) => {
       const { messageId } = req.params;
-      const isRead = readReceipts.get(messageId) || false;
+      const isRead = readReceipts.get(messageId as string) || false;
       res.json({ read: isRead });
     }
   );
