@@ -226,8 +226,6 @@ export default function CalculatorScreen() {
     }
   }, [display, checkForUnlockCode]);
 
-  const previewResult = livePreview();
-
   const handleClear = useCallback(() => {
     setDisplay("0");
     setWaitingForOperand(false);
