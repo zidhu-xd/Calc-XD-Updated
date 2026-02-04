@@ -149,13 +149,11 @@ export default function CalculatorScreen() {
 
   const handleDigitPress = useCallback(
     (digit: string) => {
-      setInputHistory((prev) => prev + digit);
-
-      if (waitingForOperand) {
+      if (display === "0" || waitingForOperand) {
         setDisplay(digit);
         setWaitingForOperand(false);
       } else {
-        setDisplay(display === "0" ? digit : display + digit);
+        setDisplay(display + digit);
       }
     },
     [display, waitingForOperand]
@@ -163,42 +161,51 @@ export default function CalculatorScreen() {
 
   const handleOperatorPress = useCallback(
     (nextOperator: string) => {
-      setInputHistory((prev) => prev + nextOperator);
-      const inputValue = parseFloat(display);
-
-      if (previousValue === null) {
-        setPreviousValue(display);
-      } else if (operator) {
-        const currentValue = previousValue ? parseFloat(previousValue) : 0;
-        const result = performCalculation(currentValue, inputValue, operator);
-        setDisplay(String(result));
-        setPreviousValue(String(result));
+      // If the last character is an operator, replace it
+      const lastChar = display[display.length - 1];
+      const operators = ["+", "-", "×", "÷"];
+      if (operators.includes(lastChar)) {
+        setDisplay(display.slice(0, -1) + nextOperator);
+      } else {
+        setDisplay(display + nextOperator);
       }
-
-      setWaitingForOperand(true);
-      setOperator(nextOperator);
+      setWaitingForOperand(false);
     },
-    [display, operator, previousValue]
+    [display]
   );
 
-  const performCalculation = (
-    left: number,
-    right: number,
-    op: string
-  ): number => {
-    switch (op) {
-      case "+":
-        return left + right;
-      case "-":
-        return left - right;
-      case "×":
-        return left * right;
-      case "÷":
-        return right !== 0 ? left / right : 0;
-      default:
-        return right;
+  const calculateExpression = (expr: string): number | null => {
+    try {
+      // Basic expression evaluator for +, -, ×, ÷
+      // We'll replace × with * and ÷ with /
+      const sanitizedExpr = expr.replace(/×/g, "*").replace(/÷/g, "/");
+      
+      // Check if it ends with an operator
+      if (["+", "-", "*", "/"].includes(sanitizedExpr.slice(-1))) {
+        return null;
+      }
+
+      // Use a simple evaluation logic
+      // Note: For a production app, a proper parser would be better
+      // but for simple calculator logic this is okay.
+      // We'll use Function as a safe-ish alternative to eval for simple math
+      const result = new Function(`return ${sanitizedExpr}`)();
+      return typeof result === "number" && isFinite(result) ? result : null;
+    } catch (e) {
+      return null;
     }
   };
+
+  const livePreview = useCallback(() => {
+    // Only show preview if there's an operator in the expression
+    const operators = ["+", "-", "×", "÷"];
+    if (operators.some(op => display.includes(op))) {
+      return calculateExpression(display);
+    }
+    return null;
+  }, [display]);
+
+  const previewResult = livePreview();
 
   const handleEquals = useCallback(async () => {
     // Check for 4-digit unlock code
@@ -206,68 +213,52 @@ export default function CalculatorScreen() {
     if (potentialCode.length === 4) {
       const unlocked = await checkForUnlockCode(potentialCode);
       if (unlocked) {
-        // Reset calculator state after unlock
         setDisplay("0");
-        setPreviousValue(null);
-        setOperator(null);
         setWaitingForOperand(false);
-        setInputHistory("");
         return;
       }
     }
 
-    // Normal calculator behavior
-    if (operator && previousValue !== null) {
-      const inputValue = parseFloat(display);
-      const currentValue = parseFloat(previousValue);
-      const result = performCalculation(currentValue, inputValue, operator);
+    const result = calculateExpression(display);
+    if (result !== null) {
       setDisplay(String(result));
-      setPreviousValue(null);
-      setOperator(null);
       setWaitingForOperand(true);
     }
-    setInputHistory("");
-  }, [display, operator, previousValue, checkForUnlockCode]);
-
-  const livePreview = useCallback(() => {
-    if (operator && previousValue !== null && !waitingForOperand) {
-      const inputValue = parseFloat(display);
-      const currentValue = parseFloat(previousValue);
-      return performCalculation(currentValue, inputValue, operator);
-    }
-    return null;
-  }, [display, operator, previousValue, waitingForOperand]);
+  }, [display, checkForUnlockCode]);
 
   const previewResult = livePreview();
 
   const handleClear = useCallback(() => {
     setDisplay("0");
-    setPreviousValue(null);
-    setOperator(null);
     setWaitingForOperand(false);
-    setInputHistory("");
   }, []);
 
   const handleToggleSign = useCallback(() => {
-    const value = parseFloat(display);
-    setDisplay(String(-value));
+    // For expression based, we just negate the current result if possible
+    const result = calculateExpression(display);
+    if (result !== null) {
+      setDisplay(String(-result));
+    }
   }, [display]);
 
   const handlePercent = useCallback(() => {
-    const value = parseFloat(display);
-    setDisplay(String(value / 100));
+    const result = calculateExpression(display);
+    if (result !== null) {
+      setDisplay(String(result / 100));
+    }
   }, [display]);
 
   const handleDecimal = useCallback(() => {
-    if (!display.includes(".")) {
+    const lastPart = display.split(/[\+\-\×\÷]/).pop() || "";
+    if (!lastPart.includes(".")) {
       setDisplay(display + ".");
     }
   }, [display]);
 
   const formatDisplay = (value: string): string => {
     const num = parseFloat(value);
-    if (isNaN(num)) return "0";
-    if (value.length > 9) {
+    if (isNaN(num)) return value;
+    if (value.length > 12) {
       return num.toExponential(3);
     }
     return value;
@@ -278,6 +269,14 @@ export default function CalculatorScreen() {
       <StatusBar style="light" />
       
       <View style={styles.displayContainer}>
+        <Text
+          style={styles.displayText}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          testID="calculator-display"
+        >
+          {display}
+        </Text>
         {previewResult !== null && (
           <Text
             style={styles.previewText}
@@ -287,14 +286,6 @@ export default function CalculatorScreen() {
             {formatDisplay(String(previewResult))}
           </Text>
         )}
-        <Text
-          style={styles.displayText}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          testID="calculator-display"
-        >
-          {formatDisplay(display)}
-        </Text>
       </View>
 
       <View style={styles.buttonContainer}>
@@ -433,17 +424,17 @@ const styles = StyleSheet.create({
   },
   displayText: {
     color: CalculatorColors.displayText,
-    fontSize: Typography.calculatorDisplay.fontSize,
-    fontWeight: Typography.calculatorDisplay.fontWeight,
+    fontSize: 60,
+    fontWeight: "300",
     textAlign: "right",
+    marginBottom: 10,
   },
   previewText: {
     color: CalculatorColors.displayText,
-    opacity: 0.5,
-    fontSize: 30,
-    fontWeight: "400",
+    opacity: 0.6,
+    fontSize: 40,
+    fontWeight: "300",
     textAlign: "right",
-    marginBottom: 4,
   },
   buttonContainer: {
     paddingHorizontal: 12,
