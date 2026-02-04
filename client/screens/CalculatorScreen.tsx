@@ -229,6 +229,17 @@ export default function CalculatorScreen() {
     setInputHistory("");
   }, [display, operator, previousValue, checkForUnlockCode]);
 
+  const livePreview = useCallback(() => {
+    if (operator && previousValue !== null && !waitingForOperand) {
+      const inputValue = parseFloat(display);
+      const currentValue = parseFloat(previousValue);
+      return performCalculation(currentValue, inputValue, operator);
+    }
+    return null;
+  }, [display, operator, previousValue, waitingForOperand]);
+
+  const previewResult = livePreview();
+
   const handleClear = useCallback(() => {
     setDisplay("0");
     setPreviousValue(null);
@@ -267,6 +278,15 @@ export default function CalculatorScreen() {
       <StatusBar style="light" />
       
       <View style={styles.displayContainer}>
+        {previewResult !== null && (
+          <Text
+            style={styles.previewText}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+          >
+            {formatDisplay(String(previewResult))}
+          </Text>
+        )}
         <Text
           style={styles.displayText}
           numberOfLines={1}
@@ -416,6 +436,14 @@ const styles = StyleSheet.create({
     fontSize: Typography.calculatorDisplay.fontSize,
     fontWeight: Typography.calculatorDisplay.fontWeight,
     textAlign: "right",
+  },
+  previewText: {
+    color: CalculatorColors.displayText,
+    opacity: 0.5,
+    fontSize: 30,
+    fontWeight: "400",
+    textAlign: "right",
+    marginBottom: 4,
   },
   buttonContainer: {
     paddingHorizontal: 12,

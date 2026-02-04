@@ -295,13 +295,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // ============================================
-  // DELETE /api/messages - Clear all messages (for testing)
+  // DELETE /api/messages - Clear all messages permanently
   // ============================================
   app.delete("/api/messages", authMiddleware, (req: Request, res: Response) => {
-    messages = [];
-    readReceipts.clear();
-    console.log("[ADMIN] All messages cleared");
-    res.json({ success: true, message: "All messages cleared" });
+    const userRole = (req as any).userRole as "A" | "B";
+    
+    // Filter out messages where the user is either sender or recipient
+    messages = messages.filter(
+      (msg) => msg.sender !== userRole && msg.recipient !== userRole
+    );
+    
+    // Cleanup read receipts for deleted messages
+    const messageIds = new Set(messages.map(m => m.id));
+    for (const id of readReceipts.keys()) {
+      if (!messageIds.has(id)) {
+        readReceipts.delete(id);
+      }
+    }
+
+    console.log(`[ADMIN] Messages cleared for user ${userRole}`);
+    res.json({ success: true, message: "Conversation history permanently deleted from server" });
   });
 
   const httpServer = createServer(app);
